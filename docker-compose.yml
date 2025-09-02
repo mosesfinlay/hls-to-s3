@@ -2,7 +2,7 @@ services:
   ngx-rtmp:
     container_name: ngx-rtmp
     image: alfg/nginx-rtmp:latest
-    platform: linux/arm64 # remove this line if you run x86_64
+    platform: linux/amd64
     restart: unless-stopped
     ports:
       - "1935:1935" # RTMP ingest
