@@ -1,1 +1,4 @@
 .history
+hls/
+.env
+.DS_Store
