@@ -1,0 +1,19 @@
+SHELL := /bin/bash
+
+up:
+\tdocker compose up -d
+
+down:
+\tdocker compose down
+
+logs:
+\tdocker compose logs -f --tail=200
+
+ps:
+\tdocker compose ps
+
+restart:
+\tdocker compose restart
+
+clean:
+\tdocker compose down -v
