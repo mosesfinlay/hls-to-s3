@@ -3,6 +3,8 @@ services:
     image: tiangolo/nginx-rtmp:latest
     container_name: rtmp
     restart: unless-stopped
+    environment:
+      RECORD_DURATION: ${RECORD_DURATION:-300s}
     ports:
       - "1935:1935" # RTMP ingest
       - "80:80" # simple http status + local /recordings browsing (optional)
