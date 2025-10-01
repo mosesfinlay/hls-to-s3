@@ -76,8 +76,8 @@ docker compose version
 Grab the code:
 
 ```sh
-git clone https://github.com/<you>/hls-to-s3.git
-cd hls-to-s3
+git clone https://github.com/<you>/rtmp-recorder.git
+cd rtmp-recorder
 ```
 
 Configure environment:
@@ -231,8 +231,8 @@ curl -SL "https://github.com/docker/compose/releases/download/${VER}/docker-comp
   -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 
-git clone https://github.com/<you>/hls-to-s3.git /opt/hls-to-s3
-cd /opt/hls-to-s3
+git clone https://github.com/<you>/rtmp-recorder.git /opt/rtmp-recorder
+cd /opt/rtmp-recorder
 cp .env.example .env
 sed -i 's/^AWS_REGION=._/AWS_REGION=us-west-2/' .env
 sed -i 's/^S3_BUCKET=._/S3_BUCKET=MY_BUCKET/' .env
