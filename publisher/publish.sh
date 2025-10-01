@@ -3,12 +3,11 @@ set -eu
 
 : "${AWS_REGION:?AWS_REGION missing}"
 : "${S3_BUCKET:?S3_BUCKET missing}"
-: "${S3_PREFIX:=hls}"
+: "${S3_PREFIX:=recordings}"
 : "${PUBLIC_ACL:=true}"
-: "${SYNC_INTERVAL_SECONDS:=1}"
-: "${PLAYLIST_MAXAGE:=1}"
-: "${SEGMENT_MAXAGE:=3}"
-: "${HLS_DIR:=/hls}"
+: "${SYNC_INTERVAL_SECONDS:=30}"
+: "${MP4_MAXAGE:=86400}"
+: "${RECORDINGS_DIR:=/recordings}"
 
 DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
 ACL_ARGS=""
@@ -16,30 +15,23 @@ if [ "${PUBLIC_ACL}" = "true" ]; then
   ACL_ARGS="--acl public-read"
 fi
 
-echo "Starting HLS publisher -> ${DEST} (interval ${SYNC_INTERVAL_SECONDS}s)"
+echo "Starting MP4 recorder publisher -> ${DEST} (interval ${SYNC_INTERVAL_SECONDS}s)"
 echo "ACL public? ${PUBLIC_ACL}, region=${AWS_REGION}"
 
-# Wait for the HLS dir to exist
-while [ ! -d "${HLS_DIR}" ]; do
-  echo "Waiting for ${HLS_DIR}..."
+# Wait for the recordings dir to exist
+while [ ! -d "${RECORDINGS_DIR}" ]; do
+  echo "Waiting for ${RECORDINGS_DIR}..."
   sleep 1
 done
 
-# Two-pass sync: TS first (slightly longer cache), then M3U8 (short cache)
+# Sync MP4 recordings to S3
 while true; do
-  # Upload segments
-  aws s3 sync "${HLS_DIR}" "${DEST}" \
+  # Upload MP4 files
+  aws s3 sync "${RECORDINGS_DIR}" "${DEST}" \
     --size-only \
     ${ACL_ARGS} \
-    --exclude "*" --include "*.ts" \
-    --cache-control "max-age=${SEGMENT_MAXAGE}, s-maxage=${SEGMENT_MAXAGE}, stale-while-revalidate=${SEGMENT_MAXAGE}"
-
-  # Upload playlists
-  aws s3 sync "${HLS_DIR}" "${DEST}" \
-    --size-only \
-    ${ACL_ARGS} \
-    --exclude "*" --include "*.m3u8" \
-    --cache-control "max-age=${PLAYLIST_MAXAGE}, s-maxage=${PLAYLIST_MAXAGE}, stale-while-revalidate=${PLAYLIST_MAXAGE}"
+    --exclude "*" --include "*.mp4" \
+    --cache-control "max-age=${MP4_MAXAGE}, s-maxage=${MP4_MAXAGE}"
 
   sleep "${SYNC_INTERVAL_SECONDS}"
 done

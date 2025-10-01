@@ -4,11 +4,11 @@ This project expects a tiny EC2 box with Docker and an instance role that can wr
 
 ## 0. Prep in AWS (one-time)
 
-### Create/choose an S3 bucket for HLS:
+### Create/choose an S3 bucket for MP4 recordings:
 
-Name example: `my-live-video`
+Name example: `my-video-recordings`
 
-If you’ll serve directly from S3, allow public reads (or prefer CloudFront + OAC).
+If you'll serve directly from S3, allow public reads (or prefer CloudFront + OAC).
 
 ### Create an IAM role for EC2 with this inline policy (scope to your bucket):
 
@@ -76,8 +76,8 @@ docker compose version
 Grab the code:
 
 ```sh
-git clone https://github.com/<you>/hls-to-s3.git
-cd hls-to-s3
+git clone https://github.com/<you>/rtmp-recorder.git
+cd rtmp-recorder
 ```
 
 Configure environment:
@@ -91,11 +91,10 @@ Edit `.env` with your values:
 ```env
 AWS_REGION=us-west-2
 S3_BUCKET=MY_BUCKET
-S3_PREFIX=hls
+S3_PREFIX=recordings
 PUBLIC_ACL=true # or false if using CloudFront+OAC
-SYNC_INTERVAL_SECONDS=1
-HLS_FRAGMENT_SECONDS=2
-HLS_PLAYLIST_SECONDS=30
+SYNC_INTERVAL_SECONDS=30
+MP4_MAXAGE=86400
 ```
 
 (Optional) lock down port 80 exposure by SG; it's only for local health/index
@@ -128,51 +127,46 @@ ffmpeg -re -f lavfi -i "testsrc=size=1280x720:rate=30" \
   -f flv "rtmp://<EC2_PUBLIC_IP>/live/<STREAM_KEY>"
 ```
 
-Verify HLS files appear:
+Verify MP4 recordings appear:
 
 ```sh
-docker exec -it rtmp ls -l /hls/<STREAM_KEY> | head
+docker exec -it rtmp ls -l /recordings/ | head
 ```
 
-## 6. Playback URL
+## 6. Accessing Recordings
 
 ### Direct S3 (public objects):
 
 ```
-https://MY_BUCKET.s3.amazonaws.com/hls/<STREAM_KEY>/index.m3u8
+https://MY_BUCKET.s3.amazonaws.com/recordings/<STREAM_KEY>.mp4
 ```
 
 ### Via CloudFront (recommended for production):
 
-Point a distribution at the bucket (Origin Access Control), set low TTLs for `.m3u8` (0–5s) and moderate for `.ts` (5–30s), then:
+Point a distribution at the bucket (Origin Access Control), then:
 
 ```
-https://YOUR_DISTRIBUTION/hls/<STREAM_KEY>/index.m3u8
+https://YOUR_DISTRIBUTION/recordings/<STREAM_KEY>.mp4
 ```
 
 ### Simple web player snippet:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<video id="v" controls autoplay muted playsinline></video>
-<script>
-  const src = "https://MY_BUCKET.s3.amazonaws.com/hls/STREAM_KEY/index.m3u8";
-  const v = document.getElementById("v");
-  if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = src;
-  else if (Hls.isSupported()) {
-    const h = new Hls();
-    h.loadSource(src);
-    h.attachMedia(v);
-  }
-</script>
+<video id="v" controls width="800">
+  <source
+    src="https://MY_BUCKET.s3.amazonaws.com/recordings/STREAM_KEY.mp4"
+    type="video/mp4"
+  />
+  Your browser does not support the video tag.
+</video>
 ```
 
 ## 7. Tuning & housekeeping
 
-- **Latency vs cost:** `nginx/nginx.conf` → `hls_fragment` (shorter = lower latency, more S3 PUTs).
-- **Window length:** `hls_playlist_length` (e.g., 12–30s).
-- **Cache behavior:** `.env` → `PLAYLIST_MAXAGE` and `SEGMENT_MAXAGE` (seconds).
-- **Disk usage:** enabled `hls_cleanup on`; add an S3 Lifecycle rule to expire old `*.ts` if needed.
+- **Recording quality:** Adjust encoder settings for desired bitrate and resolution.
+- **Sync frequency:** `.env` → `SYNC_INTERVAL_SECONDS` (how often to upload new recordings).
+- **Cache behavior:** `.env` → `MP4_MAXAGE` (seconds).
+- **Disk usage:** Add an S3 Lifecycle rule to expire old `*.mp4` files if needed.
 
 ## 8. Troubleshooting
 
@@ -185,10 +179,10 @@ https://YOUR_DISTRIBUTION/hls/<STREAM_KEY>/index.m3u8
 
 - SG must allow TCP 1935 from the encoder’s IP; verify instance’s public IP
 
-### Playback stalls / slow updates
+### Recordings not appearing
 
-- Lower `PLAYLIST_MAXAGE` in `.env`
-- If using CloudFront, set small TTLs for `.m3u8` (0–5s)
+- Check `SYNC_INTERVAL_SECONDS` in `.env` - recordings sync periodically
+- Verify the stream is actually being recorded: `docker exec -it rtmp ls -l /recordings/`
 
 ### CPU high
 
@@ -231,10 +225,11 @@ curl -SL "https://github.com/docker/compose/releases/download/${VER}/docker-comp
   -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 
-git clone https://github.com/<you>/hls-to-s3.git /opt/hls-to-s3
-cd /opt/hls-to-s3
+git clone https://github.com/<you>/rtmp-recorder.git /opt/rtmp-recorder
+cd /opt/rtmp-recorder
 cp .env.example .env
 sed -i 's/^AWS_REGION=._/AWS_REGION=us-west-2/' .env
 sed -i 's/^S3_BUCKET=._/S3_BUCKET=MY_BUCKET/' .env
+sed -i 's/^S3_PREFIX=._/S3_PREFIX=recordings/' .env
 docker compose up -d
 ```
