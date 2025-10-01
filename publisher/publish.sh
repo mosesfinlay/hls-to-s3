@@ -4,11 +4,11 @@ set -eu
 : "${AWS_REGION:?AWS_REGION missing}"
 : "${S3_BUCKET:?S3_BUCKET missing}"
 : "${S3_PREFIX:=mp4}"
-: "${PUBLIC_ACL:=true}"
+: "${PUBLIC_ACL:=false}"
 : "${SYNC_INTERVAL_SECONDS:=1}"
 : "${PLAYLIST_MAXAGE:=1}"
 : "${SEGMENT_MAXAGE:=3}"
-: "${MP4_DIR:=/hls}"
+: "${MP4_DIR:=/mp4}"
 : "${RECORD_DURATION:=300s}"
 
 DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
