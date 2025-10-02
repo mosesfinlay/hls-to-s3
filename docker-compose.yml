@@ -1,5 +1,6 @@
 services:
   rtmp:
+    user: "0:0"
     image: tiangolo/nginx-rtmp:latest
     container_name: rtmp
     restart: unless-stopped
