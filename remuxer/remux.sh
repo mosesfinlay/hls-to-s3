@@ -28,25 +28,14 @@ remux_one () {
   echo "[remux] $src -> $dst"
   if ffmpeg -hide_banner -loglevel error -y -i "$src" -c copy "$dst"; then
     echo "[remux] done: $dst"
+    echo "[remux] cleanup: $src (converted to MP4)"
+    rm -f "$src"
   else
     echo "[remux] ERROR processing $src" >&2
     rm -f "$dst"
   fi
 
   rm -f "$lock"
-}
-
-cleanup_old_flv () {
-  [ "$FLV_MAX_AGE_SECONDS" -gt 0 ] || return 0
-  find "$FLV_DIR" -type f -name '*.flv' -mmin +$(( FLV_MAX_AGE_SECONDS / 60 )) \
-    -print | while read -r f; do
-      base="$(basename "$f" .flv)"
-      mp4="${MP4_DIR}/${base}.mp4"
-      if [ -f "$mp4" ]; then
-        echo "[cleanup] removing old FLV $f"
-        rm -f "$f"
-      fi
-    done
 }
 
 echo "[remux] watching $FLV_DIR -> $MP4_DIR (QUIET_SECONDS=$QUIET_SECONDS)"
@@ -57,8 +46,6 @@ while true; do
       remux_one "$f"
     fi
   done
-
-  cleanup_old_flv
 
   sleep 5
 done
