@@ -209,6 +209,109 @@ docker compose pull
 docker compose up -d --remove-orphans
 ```
 
+### Migrate to Newest Version (Safe Deployment)
+
+When deploying a new version of the project code (not just Docker images):
+
+#### Option 1: Zero-Downtime Migration (Recommended)
+
+```sh
+# 1. Backup current setup
+cp -r rtmp-recorder rtmp-recorder-backup-$(date +%Y%m%d)
+
+# 2. Pull latest code
+cd rtmp-recorder
+git fetch origin
+git pull origin main
+
+# 3. Check for new environment variables
+diff .env.example .env || echo "Review .env for new variables"
+
+# 4. Update containers with new configuration
+docker compose pull
+docker compose up -d --remove-orphans
+
+# 5. Verify services are healthy
+docker compose ps
+docker compose logs -f --tail=50
+```
+
+#### Option 2: Clean Migration (Brief Downtime)
+
+```sh
+# 1. Stop services gracefully (completes current chunks)
+docker compose down
+
+# 2. Backup recordings and config
+sudo cp -r /var/lib/docker/volumes/rtmp-recorder_recordings_data /backup/recordings-$(date +%Y%m%d)
+cp .env .env.backup
+
+# 3. Pull latest code
+git pull origin main
+
+# 4. Update environment if needed
+# Compare .env.example with your .env and add any new variables
+
+# 5. Start with latest version
+docker compose pull
+docker compose up -d
+
+# 6. Verify migration
+docker compose logs -f --tail=100
+```
+
+#### Migration Checklist
+
+Before migrating, always:
+
+- [ ] **Check release notes** for breaking changes
+- [ ] **Backup recordings** (if using local storage)
+- [ ] **Review .env.example** for new variables
+- [ ] **Test in staging** if possible
+- [ ] **Monitor logs** after deployment
+- [ ] **Verify S3 uploads** are working
+- [ ] **Test stream ingestion** with a short test stream
+
+#### Rollback Plan
+
+If something goes wrong:
+
+```sh
+# Quick rollback to previous version
+docker compose down
+git checkout HEAD~1  # or specific commit
+docker compose up -d
+
+# Or restore from backup
+rm -rf rtmp-recorder
+mv rtmp-recorder-backup-YYYYMMDD rtmp-recorder
+cd rtmp-recorder
+docker compose up -d
+```
+
+#### Environment Variable Changes
+
+When migrating from older versions, check for these changes:
+
+- **v1.0 → v2.0**: `RECORD_DURATION` → `CHUNK_DURATION_MINUTES`
+- **New variables**: Always compare `.env.example` with your current `.env`
+
+#### Monitoring After Migration
+
+```sh
+# Watch logs for errors
+docker compose logs -f
+
+# Check container health
+docker compose ps
+
+# Verify recordings are being created
+docker exec rtmp ls -la /recordings/flv/
+
+# Test S3 sync
+docker compose logs publisher | grep -i error
+```
+
 ## 10. Optional: user-data bootstrap (auto install on first boot)
 
 Paste into EC2 User data (replace bucket/region):

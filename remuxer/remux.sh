@@ -50,6 +50,7 @@ cleanup_old_flv () {
 }
 
 echo "[remux] watching $FLV_DIR -> $MP4_DIR (QUIET_SECONDS=$QUIET_SECONDS)"
+echo "[remux] processing chunked recordings - each chunk will be converted individually"
 while true; do
   find "$FLV_DIR" -type f -name '*.flv' -print | while read -r f; do
     if is_quiet_enough "$f"; then
