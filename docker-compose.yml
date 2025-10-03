@@ -1,6 +1,6 @@
 services:
   rtmp:
-    image: tiangolo/nginx-rtmp:latest
+    build: ./nginx
     container_name: rtmp
     restart: unless-stopped
     environment:
@@ -9,7 +9,6 @@ services:
       - "1935:1935"
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - recordings_data:/recordings
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/ || exit 1"]
